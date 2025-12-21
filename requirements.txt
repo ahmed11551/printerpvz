@@ -2,5 +2,6 @@ flask==3.0.0
 flask-cors==4.0.0
 pyserial==3.5
 python-escpos==3.0a8
+requests==2.31.0
 pyusb==1.2.1
 
