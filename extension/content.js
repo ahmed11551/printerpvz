@@ -80,6 +80,9 @@
                 
                 // С текстом "ячейка: A1-1", "Ячейка: 1-1"
                 /\b[яЯ]чейк[аи]?[:\s]*([A-Za-z]?\d+[-\._\/]?\d+)\b/i,
+                // С текстом "122 ячейка", "ячейка 122" - простые числа в контексте "ячейка"
+                /\b(\d{1,4})\s+[яЯ]чейк[аи]?\b/i,
+                /\b[яЯ]чейк[аи]?\s+(\d{1,4})\b/i,
                 // В скобках (A1-1), [1-1], (A1.1)
                 /[\(\[\s]*([A-Za-z]?\d+[-\._\/]\d+)[\)\]\s]*/,
                 // С префиксом Cell: или ячейка
@@ -151,6 +154,9 @@
                 
                 // С текстом
                 /\b[яЯ]чейк[аи]?[:\s]*([A-Za-z]?\d+[-\._\/]?\d+)\b/i,
+                // С текстом "122 ячейка", "ячейка 122" - простые числа в контексте "ячейка"
+                /\b(\d{1,4})\s+[яЯ]чейк[аи]?\b/i,
+                /\b[яЯ]чейк[аи]?\s+(\d{1,4})\b/i,
                 /[\(\[\s]*([A-Za-z]?\d+[-\._\/]\d+)[\)\]\s]*/,
                 /(?:[яЯ]чейк[аи]?|cell)[:\s]*([A-Za-z]?\d+[-\._\/]\d+)/i,
                 /\b([A-Za-z])\s*(\d+)\s*[-\._\/]\s*(\d+)\b/,
@@ -214,9 +220,24 @@
             return false;
         }
         
-        // Не должно быть только цифр без букв и разделителей
+        // Разрешаем простые числа (1-9999) только если они в контексте слова "ячейка"
+        // Проверяем контекст вокруг номера ячейки
         if (/^\d+$/.test(cleanCell)) {
-            return false;
+            const cellNumberMatch = text.match(new RegExp(`\\b${cellNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'));
+            if (cellNumberMatch) {
+                const contextStart = Math.max(0, cellNumberMatch.index - 30);
+                const contextEnd = Math.min(text.length, cellNumberMatch.index + cellNumberMatch[0].length + 30);
+                const context = text.substring(contextStart, contextEnd).toLowerCase();
+                
+                // Если есть слово "ячейка" рядом с числом, разрешаем
+                if (/\bячейк[аиы]?\b/i.test(context)) {
+                    // Проверяем, что это не слишком длинное число (максимум 4 цифры для ячеек)
+                    if (cleanCell.length <= 4 && parseInt(cleanCell) > 0) {
+                        return true; // Разрешаем простые числа в контексте "ячейка"
+                    }
+                }
+            }
+            return false; // Простые числа без контекста "ячейка" не допускаются
         }
         
         // Не должно быть только букв
@@ -242,6 +263,17 @@
     function findCellNumber(text, platform) {
         if (!text || text.length > 5000) return null; // Ограничение на длину текста
         
+        // Сначала проверяем паттерны с контекстом "ячейка" для простых чисел (приоритет)
+        // Это важно, так как система может озвучивать "122 ячейка" при сканировании
+        const cellNumberWithContextPattern = /\b(\d{1,4})\s+[яЯ]чейк[аи]?\b|\b[яЯ]чейк[аи]?\s+(\d{1,4})\b/i;
+        const contextMatch = text.match(cellNumberWithContextPattern);
+        if (contextMatch) {
+            const cellNum = (contextMatch[1] || contextMatch[2]).trim();
+            if (cellNum && isValidCellNumber(cellNum, text, platform)) {
+                return cellNum;
+            }
+        }
+        
         const patterns = CONFIG[platform]?.patterns || CONFIG.ozon.patterns;
         
         for (const pattern of patterns) {
@@ -255,6 +287,9 @@
                     const separatorMatch = match[0].match(/[-\._\/]/);
                     const separator = separatorMatch ? separatorMatch[0] : '-';
                     cellNumber = (match[1] + match[2] + separator + match[3]).trim();
+                } else if (match.length >= 3 && match[1] && match[2]) {
+                    // Обработка паттерна с двумя группами (например, "122 ячейка")
+                    cellNumber = (match[1] || match[2]).trim();
                 } else {
                     cellNumber = (match[1] || match[0]).trim();
                 }
