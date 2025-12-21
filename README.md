@@ -136,7 +136,8 @@ sudo apt-get install libusb-1.0-0-dev
 Сервер запустится на `http://localhost:5001`
 
 ### Windows:
-Двойной клик на `ЗАПУСТИТЬ_ПРОСТО.bat`
+- Двойной клик на `ЗАПУСТИТЬ.bat` - запуск в консоли
+- Двойной клик на `ЗАПУСТИТЬ_GUI.bat` - запуск с графическим интерфейсом
 
 ### macOS / Linux:
 ```bash
@@ -205,14 +206,24 @@ python3 server.py
 
 ```
 .
-├── manifest.json          # Манифест расширения
-├── content.js            # Скрипт для перехвата ячеек
-├── popup.html/js         # Интерфейс настроек
-├── background.js         # Фоновая служба расширения
-├── server.py             # Сервер для печати
-├── config.json           # Конфигурация принтера
-├── requirements.txt      # Python зависимости
-└── README.md            # Документация
+├── server.py              # Сервер для печати
+├── app_gui.py             # GUI приложение
+├── config.json            # Конфигурация принтера
+├── requirements.txt       # Python зависимости
+├── server.spec            # Конфигурация для создания EXE
+├── extension/             # Папка расширения браузера
+│   ├── manifest.json
+│   ├── content.js
+│   ├── popup.html/js
+│   ├── background.js
+│   ├── icons/
+│   └── README_РАСШИРЕНИЕ.txt
+├── УСТАНОВКА.bat/sh       # Скрипты установки
+├── ЗАПУСТИТЬ.bat/sh       # Скрипты запуска
+├── ЗАПУСТИТЬ_GUI.bat/sh   # Скрипты запуска GUI
+├── УСТАНОВИТЬ_РАСШИРЕНИЕ.bat/sh  # Установка расширения
+├── СОЗДАТЬ_EXE.bat        # Создание EXE
+└── README.md              # Документация
 ```
 
 ## Графический интерфейс (GUI)
