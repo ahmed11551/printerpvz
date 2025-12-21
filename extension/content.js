@@ -638,7 +638,7 @@
                 const value = e.target.value;
                 if (value) {
                     const platform = getPlatform();
-                    const cellNumber = findCellNumber(value, platform);
+                    const cellNumber = findCellNumber(value, platform, e.target);
                     if (cellNumber) {
                         console.log('Ячейка найдена в input поле после ввода:', cellNumber);
                         sendToPrint(cellNumber);
