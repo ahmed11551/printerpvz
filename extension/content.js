@@ -184,7 +184,7 @@
     }
     
     // Валидация номера ячейки (исключение ложных срабатываний)
-    function isValidCellNumber(cellNumber, text, platform) {
+    function isValidCellNumber(cellNumber, text, platform, element = null) {
         if (!cellNumber) return false;
         
         // Проверка на исключающие паттерны
@@ -220,9 +220,29 @@
             return false;
         }
         
-        // Разрешаем простые числа (1-9999) только если они в контексте слова "ячейка"
-        // Проверяем контекст вокруг номера ячейки
+        // Разрешаем простые числа (1-9999) если:
+        // 1. Они в контексте слова "ячейка", ИЛИ
+        // 2. Они найдены в специальных элементах (input, элементы с классами ячеек)
         if (/^\d+$/.test(cleanCell)) {
+            // Проверяем, что это не слишком длинное число (максимум 4 цифры для ячеек)
+            if (cleanCell.length > 4 || parseInt(cleanCell) <= 0) {
+                return false;
+            }
+            
+            // Если элемент передан и это специальный элемент (input, textarea, select или элемент с классом cell)
+            if (element) {
+                const tagName = element.tagName;
+                const className = element.className || '';
+                const id = element.id || '';
+                const hasCellMarker = /cell|ячейк/i.test(className + ' ' + id);
+                
+                // Если это input/textarea/select или элемент с маркером "cell", разрешаем простое число
+                if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || hasCellMarker) {
+                    return true;
+                }
+            }
+            
+            // Проверяем контекст слова "ячейка" в тексте
             const cellNumberMatch = text.match(new RegExp(`\\b${cellNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'));
             if (cellNumberMatch) {
                 const contextStart = Math.max(0, cellNumberMatch.index - 30);
@@ -231,13 +251,11 @@
                 
                 // Если есть слово "ячейка" рядом с числом, разрешаем
                 if (/\bячейк[аиы]?\b/i.test(context)) {
-                    // Проверяем, что это не слишком длинное число (максимум 4 цифры для ячеек)
-                    if (cleanCell.length <= 4 && parseInt(cleanCell) > 0) {
-                        return true; // Разрешаем простые числа в контексте "ячейка"
-                    }
+                    return true; // Разрешаем простые числа в контексте "ячейка"
                 }
             }
-            return false; // Простые числа без контекста "ячейка" не допускаются
+            
+            return false; // Простые числа без контекста "ячейка" и не в специальных элементах не допускаются
         }
         
         // Не должно быть только букв
@@ -260,7 +278,7 @@
     }
     
     // Поиск номера ячейки в тексте
-    function findCellNumber(text, platform) {
+    function findCellNumber(text, platform, element = null) {
         if (!text || text.length > 5000) return null; // Ограничение на длину текста
         
         // Сначала проверяем паттерны с контекстом "ячейка" для простых чисел (приоритет)
@@ -268,7 +286,7 @@
         const contextMatch = text.match(cellNumberWithContextPattern);
         if (contextMatch) {
             const cellNum = (contextMatch[1] || contextMatch[2]).trim();
-            if (cellNum && isValidCellNumber(cellNum, text, platform)) {
+            if (cellNum && isValidCellNumber(cellNum, text, platform, element)) {
                 return cellNum;
             }
         }
@@ -297,7 +315,7 @@
                 cellNumber = cellNumber.replace(/\s+/g, '');
                 
                 // Проверяем валидность
-                if (isValidCellNumber(cellNumber, text, platform)) {
+                if (isValidCellNumber(cellNumber, text, platform, element)) {
                     return cellNumber;
                 }
             }
@@ -328,7 +346,7 @@
                                 el.getAttribute('data-cell-number') || el.getAttribute('data-cell-id') ||
                                 el.title || el.placeholder;
                     
-                    const cellNumber = findCellNumber(text, platform);
+                    const cellNumber = findCellNumber(text, platform, el);
                     if (cellNumber) {
                         console.log('Ячейка найдена через селектор:', selector, cellNumber);
                         return cellNumber;
@@ -347,7 +365,7 @@
             const fontSize = parseFloat(style.fontSize);
             // Если размер шрифта больше 20px, это может быть номер ячейки
             if (fontSize >= 20 && el.textContent && el.textContent.trim().length < 20) {
-                const cellNumber = findCellNumber(el.textContent, platform);
+                const cellNumber = findCellNumber(el.textContent, platform, el);
                 if (cellNumber) {
                     console.log('Ячейка найдена в крупном тексте:', cellNumber);
                     return cellNumber;
@@ -561,7 +579,7 @@
             // Проверяем текст элемента
             const text = element.textContent || element.innerText || element.value;
             if (text) {
-                const cellNumber = findCellNumber(text, platform);
+                const cellNumber = findCellNumber(text, platform, element);
                 if (cellNumber) {
                     console.log('Ячейка найдена в недавно измененном элементе:', cellNumber, element);
                     return cellNumber;
@@ -572,7 +590,7 @@
             const value = element.getAttribute('value') || element.getAttribute('data-cell') || 
                          element.getAttribute('data-cell-number') || element.getAttribute('data-cell-id');
             if (value) {
-                const cellNumber = findCellNumber(value, platform);
+                const cellNumber = findCellNumber(value, platform, element);
                 if (cellNumber) {
                     console.log('Ячейка найдена в атрибуте измененного элемента:', cellNumber, element);
                     return cellNumber;
