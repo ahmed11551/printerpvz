@@ -1,0 +1,31 @@
+{
+  "type": "serial",
+  "serial_port": "/dev/tty.usbserial-*",
+  "serial_baudrate": 9600,
+  "network_host": "192.168.1.100",
+  "network_port": 9100,
+  "vendor_id": 1200,
+  "product_id": 8258,
+  "printer_settings": {
+    "width_mm": 58,
+    "label_height_mm": 40,
+    "font_size": "large",
+    "text_scale": {
+      "width": 2,
+      "height": 2
+    },
+    "bold": true,
+    "align": "center",
+    "print_qr": true,
+    "qr_size": 8,
+    "cut_after_print": true,
+    "add_spacing": true
+  },
+  "label_template": {
+    "header_text": "ЯЧЕЙКА",
+    "cell_number_scale": 2,
+    "qr_below_text": true,
+    "spacing_lines": 2
+  }
+}
+

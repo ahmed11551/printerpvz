@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Логи
+logs/
+*.log
+
+# Временные файлы
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# История печати (пользовательские данные)
+print_history.json
+
+# База данных (если будет)
+*.db
+*.sqlite
+
+# Конфигурация пользователя (можно исключить, но обычно оставляют пример)
+# config.json
+
+# Временные сборки
+*.egg-info/
