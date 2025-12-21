@@ -203,8 +203,11 @@ def init_printer():
     
     try:
         if PRINTER_CONFIG['type'] == 'serial':
+            serial_port = PRINTER_CONFIG.get('serial_port', '')
+            if not serial_port or serial_port.strip() == '':
+                raise ValueError("Порт принтера не указан в config.json. Укажите правильный COM-порт (например, COM3 для Windows или /dev/tty.usbserial для Mac/Linux)")
             printer_instance = EscPosSerial(
-                devfile=PRINTER_CONFIG['serial_port'],
+                devfile=serial_port,
                 baudrate=PRINTER_CONFIG['serial_baudrate'],
                 timeout=3.0
             )
