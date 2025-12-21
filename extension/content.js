@@ -319,17 +319,40 @@
             try {
                 const elements = document.querySelectorAll(selector);
                 for (const el of elements) {
-                    // Проверяем только видимые элементы
-                    if (el.offsetParent === null && !el.hasAttribute('value')) continue;
+                    // Проверяем только видимые элементы (или input/textarea/select - они могут быть скрыты но содержать данные)
+                    if (el.offsetParent === null && !el.hasAttribute('value') && 
+                        el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' && el.tagName !== 'SELECT') continue;
                     
-                    const text = el.textContent || el.value || el.innerText || el.getAttribute('value') || el.getAttribute('data-cell');
+                    // Получаем текст из разных источников
+                    const text = el.textContent || el.value || el.innerText || 
+                                el.getAttribute('value') || el.getAttribute('data-cell') ||
+                                el.getAttribute('data-cell-number') || el.getAttribute('data-cell-id') ||
+                                el.title || el.placeholder;
+                    
                     const cellNumber = findCellNumber(text, platform);
                     if (cellNumber) {
+                        console.log('Ячейка найдена через селектор:', selector, cellNumber);
                         return cellNumber;
                     }
                 }
             } catch (e) {
                 console.warn('Selector error:', selector, e);
+            }
+        }
+        
+        // Дополнительный поиск в элементах, которые могли появиться после сканирования
+        // Ищем элементы с крупным текстом (обычно ячейки выделяются крупно)
+        const largeTextElements = document.querySelectorAll('*');
+        for (const el of largeTextElements) {
+            const style = window.getComputedStyle(el);
+            const fontSize = parseFloat(style.fontSize);
+            // Если размер шрифта больше 20px, это может быть номер ячейки
+            if (fontSize >= 20 && el.textContent && el.textContent.trim().length < 20) {
+                const cellNumber = findCellNumber(el.textContent, platform);
+                if (cellNumber) {
+                    console.log('Ячейка найдена в крупном тексте:', cellNumber);
+                    return cellNumber;
+                }
             }
         }
         
@@ -506,28 +529,116 @@
         document.head.appendChild(style);
     }
     
+    // Поиск ячейки в недавно измененных элементах (приоритет при сканировании)
+    function searchCellInRecentChanges(mutations) {
+        const platform = getPlatform();
+        if (platform === 'unknown') return null;
+        
+        // Собираем все недавно добавленные/измененные элементы
+        const changedElements = new Set();
+        
+        for (const mutation of mutations) {
+            // Новые добавленные узлы
+            if (mutation.addedNodes) {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) { // Element node
+                        changedElements.add(node);
+                        // Также проверяем дочерние элементы
+                        if (node.querySelectorAll) {
+                            node.querySelectorAll('*').forEach(child => changedElements.add(child));
+                        }
+                    }
+                });
+            }
+            
+            // Измененные узлы
+            if (mutation.target && mutation.target.nodeType === 1) {
+                changedElements.add(mutation.target);
+            }
+        }
+        
+        // Приоритетный поиск в недавно измененных элементах
+        for (const element of changedElements) {
+            // Проверяем текст элемента
+            const text = element.textContent || element.innerText || element.value;
+            if (text) {
+                const cellNumber = findCellNumber(text, platform);
+                if (cellNumber) {
+                    console.log('Ячейка найдена в недавно измененном элементе:', cellNumber, element);
+                    return cellNumber;
+                }
+            }
+            
+            // Проверяем атрибуты
+            const value = element.getAttribute('value') || element.getAttribute('data-cell') || 
+                         element.getAttribute('data-cell-number') || element.getAttribute('data-cell-id');
+            if (value) {
+                const cellNumber = findCellNumber(value, platform);
+                if (cellNumber) {
+                    console.log('Ячейка найдена в атрибуте измененного элемента:', cellNumber, element);
+                    return cellNumber;
+                }
+            }
+        }
+        
+        return null;
+    }
+    
     // Мониторинг изменений DOM
     function startMonitoring() {
         if (observer) {
             observer.disconnect();
         }
         
-        // MutationObserver для отслеживания изменений
+        // MutationObserver для отслеживания изменений после сканирования
         observer = new MutationObserver((mutations) => {
+            // Сначала проверяем недавно измененные элементы (быстрее и точнее)
+            const cellNumber = searchCellInRecentChanges(mutations);
+            if (cellNumber) {
+                sendToPrint(cellNumber);
+                return;
+            }
+            
+            // Если не нашли в изменениях, делаем полный поиск
+            const fullSearchCell = searchCellInDOM();
+            if (fullSearchCell) {
+                sendToPrint(fullSearchCell);
+            }
+        });
+        
+        // Отслеживаем все изменения в DOM (после сканирования данные появятся здесь)
+        observer.observe(document.body, {
+            childList: true,      // Добавление/удаление элементов
+            subtree: true,        // Во всех вложенных элементах
+            characterData: true,  // Изменения текста
+            attributes: true,     // Изменения атрибутов (value, data-* и т.д.)
+            attributeOldValue: false  // Не сохраняем старое значение для производительности
+        });
+        
+        // Дополнительно отслеживаем изменения значений input полей (часто используется при сканировании)
+        document.addEventListener('input', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                const value = e.target.value;
+                if (value) {
+                    const platform = getPlatform();
+                    const cellNumber = findCellNumber(value, platform);
+                    if (cellNumber) {
+                        console.log('Ячейка найдена в input поле после ввода:', cellNumber);
+                        sendToPrint(cellNumber);
+                    }
+                }
+            }
+        }, true); // Используем capture phase для перехвата всех событий
+        
+        // Отслеживаем изменения через события (на случай если MutationObserver пропустит)
+        document.addEventListener('DOMContentLoaded', () => {
             const cellNumber = searchCellInDOM();
             if (cellNumber) {
                 sendToPrint(cellNumber);
             }
         });
         
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            characterData: true,
-            attributes: true
-        });
-        
-        // Периодическая проверка
+        // Периодическая проверка (резервный метод)
         setInterval(() => {
             const cellNumber = searchCellInDOM();
             if (cellNumber) {
